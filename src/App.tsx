@@ -4,6 +4,11 @@ import type { JournalEntry, Mood } from './types';
 
 const today = new Date().toISOString().slice(0, 10);
 
+function formatRecentDateLabel(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 function App() {
   const [activePage, setActivePage] = useState<'home' | 'journals' | 'new'>('home');
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -23,6 +28,16 @@ function App() {
     const latest = entries[0];
     return { total, latest };
   }, [entries]);
+
+  const recentDates = useMemo(() => {
+    return Array.from({ length: 5 }, (_, index) => {
+      const date = new Date();
+      date.setDate(date.getDate() - index);
+      return date.toISOString().slice(0, 10);
+    });
+  }, []);
+
+  const existingDates = useMemo(() => new Set(entries.map((entry) => entry.date)), [entries]);
 
   const submitEntry = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -113,7 +128,28 @@ function App() {
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-slate-800/80 p-5">
                   <h3 className="text-lg font-semibold text-white">Quick add</h3>
-                  <p className="mt-1 text-sm text-slate-300">Add today’s thought in seconds. If the date already exists, the app updates that entry instead of creating duplicates.</p>
+                  <p className="mt-1 text-sm text-slate-300">Pick one of the last five days to open the entry form instantly. If that day already has an entry, it will be updated instead of duplicated.</p>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+                    {recentDates.map((date) => {
+                      const isExisting = existingDates.has(date);
+                      return (
+                        <button
+                          key={date}
+                          type="button"
+                          onClick={() => {
+                            setQuickDate(date);
+                            setFormDate(date);
+                            setActivePage('new');
+                          }}
+                          className={`rounded-2xl border px-3 py-3 text-left transition ${isExisting ? 'border-amber-400/30 bg-amber-400/10 text-amber-100 hover:bg-amber-400/20' : 'border-cyan-400/30 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/20'}`}
+                        >
+                          <p className="text-xs uppercase tracking-[0.35em] opacity-80">{date === today ? 'Today' : formatRecentDateLabel(date)}</p>
+                          <p className="mt-1 text-sm font-semibold">{date}</p>
+                          <p className="mt-1 text-[11px] opacity-80">{isExisting ? 'Update existing entry' : 'Create new entry'}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
                   <form
                     className="mt-4 space-y-4"
                     onSubmit={(event) => {
@@ -173,6 +209,21 @@ function App() {
                   <p className="text-sm uppercase tracking-[0.35em] text-emerald-300">Editor</p>
                   <h2 className="mt-2 text-2xl font-semibold text-white">{editingId ? 'Update your journal entry' : 'Create a journal entry'}</h2>
                   <p className="mt-1 text-sm text-slate-300">One entry per date, saved in local storage through a dedicated service layer.</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-slate-800/80 p-4">
+                  <p className="text-sm text-slate-200">Last 5 days</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {recentDates.map((date) => (
+                      <button
+                        key={date}
+                        type="button"
+                        onClick={() => setFormDate(date)}
+                        className={`rounded-xl border px-3 py-2 text-sm transition ${formDate === date ? 'border-cyan-400 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-slate-950/70 text-slate-200 hover:bg-slate-700'}`}
+                      >
+                        {date === today ? 'Today' : formatRecentDateLabel(date)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <form onSubmit={submitEntry} className="space-y-4 rounded-2xl border border-white/10 bg-slate-800/80 p-5">
                   <label className="block text-sm text-slate-200">Date
